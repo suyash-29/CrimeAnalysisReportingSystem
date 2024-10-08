@@ -18,7 +18,6 @@ namespace CrimeAnalysisReportingSystem2.main
 {
     public class MainModule
     {
-        private static SqlConnection connection;
 
         public static void Main(string[] args)
         {

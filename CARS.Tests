@@ -1,0 +1,166 @@
+using NUnit.Framework;
+using Moq;
+
+using CrimeAnalysisReportingSystem2.dao;
+using CrimeAnalysisReportingSystem2.entity;
+
+[TestFixture]
+public class CrimeAnalysisServiceTests
+{
+    private Mock<ICrimeAnalysisService> _crimeServiceMock;
+
+    [SetUp]
+    public void SetUp()
+    {
+        // setting up mock for ICrimeAnalysisService
+        _crimeServiceMock = new Mock<ICrimeAnalysisService>();
+    }
+
+    [Test]
+    public void CreateIncident_ShouldCreateIncidentSuccessfully()
+    {
+        // Arrange
+        var incident = new Incident(0, "Theft", new DateTime(2024, 10, 1), "NYC", "Stolen items", "open");
+        var victims = new List<Victim>
+        {
+            new Victim("John", "Doe", new DateTime(1990, 1, 1), "Male", "1234567890")
+        };
+        var suspects = new List<Suspect>
+        {
+            new Suspect("Jane", "Smith", new DateTime(1985, 5, 5), "Female", "9876543210")
+        };
+        int expectedIncidentId = 123;
+
+        // Mocking the behavior of CreateIncident to return the expectedIncidentId
+        _crimeServiceMock.Setup(cs => cs.CreateIncident(incident, victims, suspects)).Returns(expectedIncidentId);
+
+       
+        var actualIncidentId = _crimeServiceMock.Object.CreateIncident(incident, victims, suspects);
+
+       
+        Assert.That(actualIncidentId, Is.EqualTo(expectedIncidentId), "Incident ID should match the expected value.");
+        _crimeServiceMock.Verify(cs => cs.CreateIncident(incident, victims, suspects), Times.Once, "CreateIncident should be called once.");
+    }
+
+    [Test]
+    public void CreateIncident_ShouldHandleException()
+    {
+        
+        var incident = new Incident(0, "Theft", new DateTime(2024, 10, 1), "NYC", "Stolen items", "open");
+        var victims = new List<Victim>
+        {
+            new Victim("John", "Doe", new DateTime(1990, 1, 1), "Male", "123-456-7890")
+        };
+        var suspects = new List<Suspect>
+        {
+            new Suspect("Jane", "Smith", new DateTime(1985, 5, 5), "Female", "987-654-3210")
+        };
+
+        // Mocking the behavior of CreateIncident to throw an exception
+        _crimeServiceMock.Setup(cs => cs.CreateIncident(incident, victims, suspects))
+            .Throws(new Exception("Database error"));
+
+        var ex = Assert.Throws<Exception>(() => _crimeServiceMock.Object.CreateIncident(incident, victims, suspects));
+        Assert.That(ex.Message, Is.EqualTo("Database error"), "The exception message should match.");
+    }
+
+    [Test]
+    public void UpdateIncidentStatus_ShouldUpdateStatusSuccessfully()
+    {
+        int incidentId = 1;
+        string newStatus = "closed";
+
+        // Mocking the UpdateIncidentStatus method with no return since it is void
+        _crimeServiceMock.Setup(cs => cs.UpdateIncidentStatus(incidentId, newStatus));
+
+        
+        _crimeServiceMock.Object.UpdateIncidentStatus(incidentId, newStatus);
+
+       
+        _crimeServiceMock.Verify(cs => cs.UpdateIncidentStatus(incidentId, newStatus), Times.Once, "UpdateIncidentStatus should be called once.");
+    }
+
+    
+    [Test]
+    public void UpdateIncidentStatus_ShouldHandleInvalidStatus()
+    {
+        int incidentId = 1;
+        string invalidStatus = "invalidStatus";
+
+        _crimeServiceMock.Setup(cs => cs.UpdateIncidentStatus(incidentId, invalidStatus))
+            .Throws(new ArgumentException("Invalid status provided"));
+
+        var ex = Assert.Throws<ArgumentException>(() => _crimeServiceMock.Object.UpdateIncidentStatus(incidentId, invalidStatus));
+        Assert.That(ex.Message, Is.EqualTo("Invalid status provided"), "The exception message should indicate an invalid status.");
+    }
+
+
+    [Test]
+    public void UpdateIncidentStatus_ShouldThrowException_WhenIncidentNotFound()
+    {
+        int incidentId = 999; // wrong incident id 
+        string newStatus = "open";
+
+        _crimeServiceMock.Setup(cs => cs.UpdateIncidentStatus(incidentId, newStatus))
+            .Throws(new Exception("Incident not found"));
+
+        var ex = Assert.Throws<Exception>(() => _crimeServiceMock.Object.UpdateIncidentStatus(incidentId, newStatus));
+        Assert.That(ex.Message, Is.EqualTo("Incident not found"), "The exception message should indicate the incident was not found.");
+    }
+
+    [Test]
+    public void GenerateIncidentReport_ShouldGenerateReport_WhenIncidentExists()
+    {
+        int incidentId = 1;
+
+        var incident = new Incident(incidentId, "Theft", DateTime.Now, "Location", "Description", "open");
+
+        var expectedReport = new Report
+        {
+            ReportID = 101,
+            IncidentID = incidentId,
+            ReportDate = DateTime.Now,
+            ReportDetails = "Incident report details",
+            Status = "Generated"
+        };
+
+        _crimeServiceMock.Setup(cs => cs.GetIncidentDetails(incidentId)).Returns(incident);
+
+        _crimeServiceMock.Setup(cs => cs.GenerateIncidentReport(incident)).Returns(expectedReport);
+
+        var report = _crimeServiceMock.Object.GenerateIncidentReport(incident);
+
+        Assert.That(report, Is.Not.Null, "Report should not be null when incident exists");
+        Assert.That(report.ReportID, Is.EqualTo(101), "Report ID should be 101");
+        Assert.That(report.Status, Is.EqualTo("Generated"), "Report status should be 'Generated'");
+    }
+
+    [Test]
+    public void GenerateIncidentReport_ShouldReturnNull_WhenIncidentDoesNotExist()
+    {
+        int incidentId = 999; // wrong incident id
+
+        _crimeServiceMock.Setup(cs => cs.GetIncidentDetails(incidentId)).Returns((Incident)null);
+
+        var incident = _crimeServiceMock.Object.GetIncidentDetails(incidentId);
+
+        Assert.That(incident, Is.Null, $"Incident with ID {incidentId} should not exist");
+    }
+
+    [Test]
+    public void GenerateIncidentReport_ShouldHandleException_WhenErrorOccurs()
+    {
+        int incidentId = 1;
+
+        var incident = new Incident(incidentId, "Theft", DateTime.Now, "Location", "Description", "open");
+
+        _crimeServiceMock.Setup(cs => cs.GenerateIncidentReport(incident))
+            .Throws(new Exception("Error generating report"));
+
+        var ex = Assert.Throws<Exception>(() => _crimeServiceMock.Object.GenerateIncidentReport(incident));
+        Assert.That(ex.Message, Is.EqualTo("Error generating report"));
+    }
+
+}
+
+

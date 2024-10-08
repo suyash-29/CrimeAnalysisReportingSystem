@@ -664,10 +664,6 @@ namespace CrimeAnalysisReportingSystem2.dao
         }
 
 
-
-
-       
-
         private bool InsertVictim(Victim victim, SqlTransaction transaction)
         {
             try
